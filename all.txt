@@ -1,0 +1,304 @@
+✅ 1. Kitty НЕ использует Fontconfig — он вообще игнорирует hinting/antialias
+
+Очень важно понимать:
+
+👉 kitty полностью игнорирует fontconfig настройки hinting / subpixel / antialias
+
+Kitty использует:
+
+свой внутренний рендерер
+
+только системное субпиксельное сглаживание (если включено на уровне системы)
+
+параметры из kitty.conf ограничены, и у тебя часть из них просто НЕ существует.
+
+❌ Эти строки НЕ РАБОТАЮТ:
+hinting full
+antialias true
+subpixel_antialiasing true
+
+
+У kitty есть всего 2 параметра для шрифтов:
+
+font_family JetBrains Mono
+font_size 14
+adjust_line_height 100%
+enable_ligatures yes/no
+
+
+Официальная документация kitty:
+https://sw.kovidgoyal.net/kitty/conf/
+
+👉 Как включить максимально чёткие шрифты в kitty
+
+Убедись, что используется Wayland:
+
+wayland_enable yes
+
+
+Пропиши корректно font_family:
+
+font_family      JetBrains Mono
+bold_font        JetBrains Mono Bold
+italic_font      JetBrains Mono Italic
+bold_italic_font JetBrains Mono Bold Italic
+
+
+Включи патч для сглаживания (kitty требует fontconfig для subpixel):
+
+Создай файл:
+
+~/.config/fontconfig/conf.d/10-subpixel.conf
+
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <match target="font">
+    <edit name="rgba" mode="assign"><const>rgb</const></edit>
+    <edit name="hinting" mode="assign"><bool>true</bool></edit>
+    <edit name="hintstyle" mode="assign"><const>hintfull</const></edit>
+    <edit name="antialias" mode="assign"><bool>true</bool></edit>
+    <edit name="lcdfilter" mode="assign"><const>lcddefault</const></edit>
+  </match>
+</fontconfig>
+
+
+И обнови кэш:
+
+fc-cache -fv
+
+
+Теперь kitty будет использовать системное Subpixel AA.
+
+✅ 2. Hyprland НЕ поддерживает font_rules
+
+Ошибки:
+
+config option <font_rules:hinting> does not exist.
+
+
+Почему? Потому что font_rules вообще не существует в Hyprland.
+
+Эта секция была у Hyprland в Hyprpaper, но НЕ в WM.
+
+Hyprland НЕ регулирует сглаживание шрифтов.
+Им занимается:
+
+Fontconfig
+
+Приложения (kitty, zed, chromium, firefox)
+
+Поэтому строки:
+
+font_rules {
+   hinting = full
+   antialias = yes
+   rgba = rgb
+}
+
+
+👉 нужно удалить — это нерабочий синтаксис.
+
+✅ 3. Zed editor — тоже не использует fontconfig
+
+Zed выполняет рендеринг через Skia.
+
+Чтобы включить нормальное сглаживание:
+
+Открой:
+~/.config/zed/settings.json
+
+Добавь:
+
+{
+  "font_family": "JetBrains Mono",
+  "font_size": 14,
+  "font_features": ["+liga"],
+  "font_weight": "Regular",
+  "enable_ligatures": true,
+  "draw_bold_text_with_bright_colors": true
+}
+
+✅ 4. Вся мыльность может быть из-за неверного subpixel rgba
+
+У тебя мониторы:
+
+monitor = HDMI-A-2, 1920x1080@60
+monitor = DP-6, 1920x1080@60
+
+
+Если у одного из них другая ориентация пикселей (bgr/rgb), то всё будет размытым.
+
+Проверь:
+
+xrandr --verbose | grep -i subpixel
+
+
+На Wayland можно проверить только через wlroots, но зачастую:
+
+👉 Если монитор вертикальный — ему нужен bgr
+👉 Если монитор обычный — rgb
+
+Попробуй сменить:
+
+/etc/nixos/configuration.nix
+
+fonts.fontconfig.subpixel.rgba = "bgr";
+
+
+и ребилд:
+
+sudo nixos-rebuild switch
+
+✅ 5. Судя по fc-match — у тебя вообще не используется JetBrains Mono
+
+Посмотри:
+
+fc-match -s "JetBrains Mono"
+
+
+Если выдаёт:
+
+DejaVuSansMono.ttf
+
+
+👉 Значит JetBrains Mono НЕ УСТАНОВЛЕН на уровне системы.
+
+Установи:
+
+fonts.packages = with pkgs; [
+  jetbrains-mono
+];
+
+
+И rebuild:
+
+sudo nixos-rebuild switch
+fc-cache -fv
+
+⛔ Важное: Kitty.conf «не работает» потому что NixOS ставит kitty system-wide
+
+Если хочешь переопределять конфиг в ~/.config/kitty/kitty.conf, убедись:
+
+mkdir -p ~/.config/kitty
+
+
+и имя файла строго:
+
+kitty.conf
+
+🔥 ХОЧЕШЬ — Могу подготовить идеальный набор конфигов для NixOS + Hyprland + Kitty, который реально делает шрифты резкими, как на macOS.
+Вы сказали:
+думаю, стоит перейти на alacricity, вроде там такой проблемы нет, как это сделать и настроить его?
+Также, как мне добавить смену языка на русский?
+И как мне изменять яркость?
+ChatGPT сказал:
+
+Вот простой и ясный план, как перейти на Alacritty, добавить смену языка, и настроить яркость экрана в NixOS + Hyprland.
+
+✅ Установка и настройка Alacritty
+1. Установи Alacritty через NixOS configuration.nix
+
+Открой /etc/nixos/configuration.nix и добавь:
+
+environment.systemPackages = with pkgs; [
+  alacritty
+];
+
+
+Перестрой систему:
+
+sudo nixos-rebuild switch
+
+2. Укажи Alacritty как терминал по умолчанию в Hyprland
+
+В ~/.config/hypr/hyprland.conf:
+
+$terminal = alacritty
+bind = $mainMod, RETURN, exec, $terminal
+
+
+Теперь WIN + Enter будет открывать Alacritty.
+
+3. Создай конфиг Alacritty (если хочешь кастомизацию)
+
+Файл:
+
+~/.config/alacritty/alacritty.toml
+
+Минимальный пример:
+
+[window]
+opacity = 0.94
+decorations = "None"
+
+[font]
+size = 12
+
+🇷🇺 Добавление переключения раскладки (русский + английский)
+
+В NixOS это делается в разделе services.xserver, даже если Xorg не используется — NixOS использует этот модуль для настройки раскладок и Wayland тоже.
+
+Добавь в configuration.nix:
+
+services.xserver = {
+  layout = "us,ru";
+  xkbOptions = "grp:alt_shift_toggle";
+};
+
+
+Возможные варианты переключения:
+
+grp:alt_shift_toggle — Alt + Shift
+
+grp:super_space — Win + Space
+
+grp:ctrl_shift_toggle — Ctrl + Shift
+
+Пример с Win + Space:
+
+services.xserver.xkbOptions = "grp:super_space";
+
+
+Применить:
+
+sudo nixos-rebuild switch
+
+🔆 Настройка регулировки яркости
+
+В Hyprland есть два варианта:
+
+Способ 1. Управление яркостью утилитой brightnessctl (рекомендуется)
+Установи:
+
+В configuration.nix:
+
+environment.systemPackages = with pkgs; [
+  brightnessctl
+];
+
+
+Переключение яркости в Hyprland через бинды:
+
+В hyprland.conf:
+
+bind = ,XF86MonBrightnessUp, exec, brightnessctl set +10%
+bind = ,XF86MonBrightnessDown, exec, brightnessctl set 10%-
+
+
+Если на клавиатуре нет кнопок яркости — назначь свои:
+
+bind = $mainMod, U, exec, brightnessctl set +10%
+bind = $mainMod, J, exec, brightnessctl set 10%-
+
+Способ 2. Управление яркостью через wlr-randr (если нужно менять яркость отдельного монитора)
+
+Например:
+
+wlr-randr --output eDP-1 --brightness 0.7
+
+
+Чтобы сделать клавиатурные бинды:
+
+bind = $mainMod, U, exec, wlr-randr --output eDP-1 --brightness 0.1+
+bind = $mainMod, J, exec, wlr-randr --output eDP-1 --brightness 0.1-
