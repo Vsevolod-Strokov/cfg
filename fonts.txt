@@ -1,0 +1,12 @@
+fonts = {
+  enableDefaultPackages = true;
+
+  # Для более чётких шрифтов
+  fontconfig = {
+    antialias = true;
+    hinting.enable = true;
+    hinting.style = "full";   # normal/full/hintslight
+    subpixel.lcdfilter = "default"; # или "light"
+    subpixel.rgba = "rgb";    # обратная ориентация – "bgr"
+  };
+};
