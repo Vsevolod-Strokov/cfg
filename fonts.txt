@@ -10,3 +10,14 @@ fonts = {
     subpixel.rgba = "rgb";    # обратная ориентация – "bgr"
   };
 };
+
+
+
+
+#HYPRLAND
+# более чёткий текст
+#font_rules {
+#    hinting = full
+#    antialias = yes
+#    rgba = rgb  # или bgr
+#}
